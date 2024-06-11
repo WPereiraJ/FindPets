@@ -1,41 +1,61 @@
 <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-  $nome = $_POST["nome"];
-  $senha = $_POST["senha"];
+    $nome = $_POST["usuario"];
+    $senha = $_POST["senha"];
 
-  // Verificar no banco de dados se o login está correto
-  $servername = "";
-  $username = "";
-  $password = "";
-  $dbname = "";
+    // Configuração da conexão com o banco de dados
+    include_once "db_config.php";
 
-  $conn = new mysqli($servername, $username, $password, $dbname);
+    $conn = new mysqli($servername, $username, $password, $dbname);
 
-  if ($conn->connect_error) {
-    die("Falha na conexão com o banco de dados: " . $conn->connect_error);
-  }
+    if ($conn->connect_error) {
+        die("Falha na conexão com o banco de dados: " . $conn->connect_error);
+    }
 
-  $sql = "SELECT id FROM clientes WHERE nome = '$nome' AND senha = '$senha'";
-  $result = $conn->query($sql);
+    // Consulta na primeira tabela (tb_procurador)
+    $sql_procurador = "SELECT id_procurador AS id FROM tb_procurador WHERE nome = ? AND senha = ?";
+    $stmt_procurador = $conn->prepare($sql_procurador);
+    if (!$stmt_procurador) {
+        die("Erro na preparação da consulta: " . $conn->error);
+    }
+    $stmt_procurador->bind_param("ss", $nome, $senha);
+    $stmt_procurador->execute();
+    $result_procurador = $stmt_procurador->get_result();
 
-  if ($result->num_rows > 0) {
-    $row = $result->fetch_assoc();
-    $idUsuario = $row["id"];
+    // Consulta na segunda tabela (dono_pet)
+    $sql_cliente = "SELECT id_dono AS id FROM dono_pet WHERE nome = ? AND senha = ?";
+    $stmt_cliente = $conn->prepare($sql_cliente);
+    if (!$stmt_cliente) {
+        die("Erro na preparação da consulta: " . $conn->error);
+    }
+    $stmt_cliente->bind_param("ss", $nome, $senha);
+    $stmt_cliente->execute();
+    $result_cliente = $stmt_cliente->get_result();
 
+    // Verificar se alguma das consultas retornou um resultado
+    if ($result_procurador->num_rows > 0) {
+        $row = $result_procurador->fetch_assoc();
+        $idUsuario = $row["id"];
+        $tipoUsuario = "procurador"; // Adiciona o tipo de usuário
+    } elseif ($result_cliente->num_rows > 0) {
+        $row = $result_cliente->fetch_assoc();
+        $idUsuario = $row["id"];
+        $tipoUsuario = "dono"; // Adiciona o tipo de usuário
+    } else {
+        $erro = "Nome de usuário ou senha incorretos";
+        header("Location: ../login.php?erro=" . urlencode($erro));
+        exit;
+    }
+
+    // Iniciar a sessão e armazenar informações do usuário
     session_start();
-
-    // Armazenar informações do usuário na sessão
     $_SESSION["id_usuario"] = $idUsuario;
     $_SESSION["nome"] = $nome;
+    $_SESSION["tipo_usuario"] = $tipoUsuario; // Armazena o tipo de usuário na sessão
 
-    // Redirecionar para a página do perfil
     header("Location: ../home.php");
     exit;
-  } else {
-    $erro = "Nome de usuário ou senha incorretos";
-    header("Location: ../index.php?erro=" . urlencode($erro));
-  }
 
-
-  $conn->close();
+    $conn->close();
 }
+?>

@@ -60,7 +60,7 @@
 
     </div>
 
-    <script type="text/javascript" src="JS/vanila-tils.js"></script>
+    <script type="text/javascript" src="js/vanila-tils.js"></script>
     <script>
         VanillaTilt.init(document.querySelectorAll(".card"),
         {
